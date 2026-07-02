@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Online Electrical Load Schedule</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Online Electrical Load Schedule</h1>
+        <p>ฟอร์มคำนวณโหลด 1P/3P สำหรับหน้างาน พร้อมตารางมาตรฐานและรายงาน A4</p>
+      </div>
+      <div class="header-actions">
+        <button id="saveBtn" type="button">บันทึก</button>
+        <button id="exportBtn" type="button">Export CSV</button>
+        <button id="exportPdfBtn" type="button">Save PDF</button>
+        <button id="reportBtn" type="button">Preview A4</button>
+        <button id="printBtn" type="button">พิมพ์</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="settings-panel" aria-label="Project settings">
+        <div class="section-title">Project Settings</div>
+        <div class="field-grid">
+          <label>
+            Project
+            <input id="projectName" type="text" value="Central Load Template" />
+          </label>
+          <label>
+            System Voltage
+            <input id="systemVoltage" type="number" value="400" min="1" step="1" />
+          </label>
+          <label>
+            Main Cable Method
+            <select id="mainCableMethod"></select>
+          </label>
+          <label>
+            Main Spare
+            <input id="mainSpare" type="number" value="20" min="0" step="1" />
+          </label>
+        </div>
+      </section>
+
+      <section class="form-panel backend-only" aria-label="PDF extraction">
+        <div class="section-bar">
+          <div class="section-title">PDF Import / Review</div>
+          <div class="row-actions">
+            <button id="samplePdfBtn" type="button">สร้าง PDF ตัวอย่าง</button>
+            <button id="importExtractedBtn" type="button">นำเข้าตารางโหลด</button>
+            <button id="exportExtractedBtn" type="button">Export Extracted CSV</button>
+          </div>
+        </div>
+        <div class="pdf-tools">
+          <label class="wide">
+            Upload PDF
+            <input id="pdfInput" type="file" accept="application/pdf" />
+          </label>
+          <button id="extractPdfBtn" type="button">อ่าน PDF</button>
+          <div id="pdfStatus" class="status-box">รองรับ PDF ที่มี selectable text ก่อน ถ้าเป็น scan จะขึ้นเตือนให้ OCR</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Panel</th>
+                <th>Category</th>
+                <th>Load</th>
+                <th>Input</th>
+                <th>Qty</th>
+                <th>kW</th>
+                <th>A</th>
+                <th>Voltage</th>
+                <th>Phase</th>
+                <th>Status</th>
+                <th>Issue / Assumption</th>
+              </tr>
+            </thead>
+            <tbody id="extractedTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Summary">
+        <article class="metric">
+          <span>Total Load</span>
+          <strong id="totalKw">0 kW</strong>
+        </article>
+        <article class="metric">
+          <span>Main Current</span>
+          <strong id="mainCurrent">0 A</strong>
+        </article>
+        <article class="metric">
+          <span>Main Cable</span>
+          <strong id="mainCable">-</strong>
+        </article>
+        <article class="metric">
+          <span>Main Breaker</span>
+          <strong id="mainBreaker">-</strong>
+        </article>
+        <article class="metric">
+          <span>Device</span>
+          <strong id="mainDevice">-</strong>
+        </article>
+        <article class="metric">
+          <span>ACB</span>
+          <strong id="mainAcb">-</strong>
+        </article>
+      </section>
+
+      <section class="split-grid">
+        <article class="table-panel" aria-label="Phase balance">
+          <div class="section-title">Phase Balance</div>
+          <div class="phase-grid">
+            <div class="phase-box"><span>Phase A</span><strong id="phaseA">0 VA</strong></div>
+            <div class="phase-box"><span>Phase B</span><strong id="phaseB">0 VA</strong></div>
+            <div class="phase-box"><span>Phase C</span><strong id="phaseC">0 VA</strong></div>
+            <div class="phase-box"><span>Unbalance</span><strong id="phaseUnbalance">0%</strong></div>
+          </div>
+        </article>
+        <article class="table-panel" aria-label="Design warnings">
+          <div class="section-title">Design Check</div>
+          <div id="warningList" class="warning-list"></div>
+        </article>
+      </section>
+
+      <section class="form-panel" aria-label="Load entry">
+        <div class="section-bar">
+          <div class="section-title">Load Entry</div>
+          <div class="row-actions">
+            <button id="addRowBtn" type="button">เพิ่มโหลด</button>
+            <button id="clearRowsBtn" type="button">ล้างตัวอย่าง</button>
+          </div>
+        </div>
+
+        <div class="load-form">
+          <label>
+            Zone
+            <input id="zoneInput" type="text" placeholder="Mall / Office / Home" />
+          </label>
+          <label>
+            Panel
+            <input id="panelInput" type="text" placeholder="MDB / DB-1" />
+          </label>
+          <label>
+            Category
+            <select id="categoryInput"></select>
+          </label>
+          <label class="wide">
+            Load Name
+            <input id="loadNameInput" type="text" placeholder="Lighting, Pump, VRF, EV Charger" />
+          </label>
+          <label>
+            Input
+            <select id="inputTypeInput">
+              <option value="kW">kW</option>
+              <option value="Current A">Current A</option>
+            </select>
+          </label>
+          <label>
+            Qty
+            <input id="qtyInput" type="number" value="1" min="0" step="1" />
+          </label>
+          <label>
+            kW/Unit
+            <input id="kwInput" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            FLA/Unit
+            <input id="ampInput" type="number" min="0" step="0.1" />
+          </label>
+          <label>
+            Voltage
+            <input id="voltageInput" type="number" value="400" min="1" step="1" />
+          </label>
+          <label>
+            Phase
+            <select id="phaseInput">
+              <option value="3 Phase">3 Phase</option>
+              <option value="1 Phase">1 Phase</option>
+            </select>
+          </label>
+          <label>
+            1P Phase
+            <select id="phaseLoadInput">
+              <option value="Auto">Auto Balance</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+          </label>
+          <label>
+            PF
+            <input id="pfInput" type="number" value="0.90" min="0.01" max="1" step="0.01" />
+          </label>
+          <label>
+            Eff.
+            <input id="effInput" type="number" value="1.00" min="0.01" max="1" step="0.01" />
+          </label>
+          <label>
+            Demand
+            <input id="demandInput" type="number" value="1.00" min="0" step="0.01" />
+          </label>
+          <label>
+            Branch Factor
+            <input id="branchFactorInput" type="number" value="1.25" min="0" step="0.01" />
+          </label>
+          <label>
+            Motor Add
+            <select id="motorAddInput">
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
+          <label>
+            Length
+            <input id="lengthInput" type="number" min="0" step="1" />
+          </label>
+          <label>
+            Cable Method
+            <select id="cableMethodInput"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="table-panel" aria-label="Load schedule">
+        <div class="section-title">Load Schedule</div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>Zone</th>
+                <th>Panel</th>
+                <th>Category</th>
+                <th>Load</th>
+                <th>Input</th>
+                <th>Qty</th>
+                <th>kW</th>
+                <th>FLA</th>
+                <th>Run A</th>
+                <th>Design A</th>
+                <th>Cable</th>
+                <th>Breaker</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="loadTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-panel" aria-label="Standard load schedule">
+        <div class="section-title">Standard Load Schedule (1P / 3P)</div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Circuit No.</th>
+                <th>Description</th>
+                <th>Panel</th>
+                <th>Phase</th>
+                <th>CB Pole</th>
+                <th>CB AT</th>
+                <th>Type</th>
+                <th>IC&gt;= kA</th>
+                <th>Wire Size</th>
+                <th>Wire Type</th>
+                <th>Conduit Type</th>
+                <th>A VA</th>
+                <th>B VA</th>
+                <th>C VA</th>
+                <th>Total VA</th>
+                <th>Current A</th>
+                <th>Demand VA</th>
+              </tr>
+            </thead>
+            <tbody id="standardScheduleBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="split-grid">
+        <article class="table-panel">
+          <div class="section-title">Panel Summary</div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Panel</th>
+                  <th>Design A</th>
+                  <th>Cable</th>
+                  <th>Breaker</th>
+                  <th>Device</th>
+                  <th>Icu/Ics</th>
+                </tr>
+              </thead>
+              <tbody id="panelSummaryBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="table-panel">
+          <div class="section-title">Breaker / ACB Schedule</div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Board</th>
+                  <th>Design A</th>
+                  <th>AT</th>
+                  <th>Device</th>
+                  <th>AF</th>
+                  <th>Trip</th>
+                  <th>Poles</th>
+                </tr>
+              </thead>
+              <tbody id="acbScheduleBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="table-panel" aria-label="A4 report preview">
+        <div class="section-bar">
+          <div class="section-title">A4 Report Preview</div>
+          <div class="row-actions">
+            <button id="refreshPreviewBtn" type="button">Refresh Preview</button>
+          </div>
+        </div>
+        <iframe id="reportPreview" title="A4 report preview"></iframe>
+      </section>
+    </main>
+
+    <script src="app.js?v=20260702-online-static"></script>
+  </body>
+</html>
