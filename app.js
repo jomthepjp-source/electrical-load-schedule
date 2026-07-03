@@ -103,6 +103,26 @@ function phaseVa(row, totalVa, index) {
     const each = totalVa / 3;
     return { a: each, b: each, c: each };
   }
+  if (!row.phaseLoad || row.phaseLoad === "Auto") {
+    const qty = Number(row.qty || 1);
+    if (qty > 1 && Number.isInteger(qty)) {
+      const perUnitVa = totalVa / qty;
+      const base = Math.floor(qty / 3);
+      const remainder = qty % 3;
+      const counts = [
+        base + (remainder > 0 ? 1 : 0),
+        base + (remainder > 1 ? 1 : 0),
+        base,
+      ];
+      return {
+        a: counts[0] * perUnitVa,
+        b: counts[1] * perUnitVa,
+        c: counts[2] * perUnitVa,
+      };
+    }
+    const each = totalVa / 3;
+    return { a: each, b: each, c: each };
+  }
   const phaseIndex = row.phaseLoad === "A" ? 0 : row.phaseLoad === "B" ? 1 : row.phaseLoad === "C" ? 2 : index % 3;
   return {
     a: phaseIndex === 0 ? totalVa : 0,
